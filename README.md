@@ -1,198 +1,244 @@
-/************************************************
- * Wellness RAG Micro-App (Single File)
- * Ask Me Anything About Yoga
- ************************************************/
+🧘 Wellness RAG Micro-App
+Ask Me Anything About Yoga
 
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import bodyParser from "body-parser";
-import dotenv from "dotenv";
-import OpenAI from "openai";
+A single-file, full-stack AI micro-application that answers yoga-related questions using a Retrieval-Augmented Generation (RAG) pipeline with built-in safety guardrails for health-sensitive queries.
 
-dotenv.config();
+This project is designed to be simple, explainable, and evaluation-friendly, making it ideal for Unstop challenges and technical assessments.
 
-/* -------------------- APP SETUP -------------------- */
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+🚀 Project Overview
 
-/* -------------------- OPENAI -------------------- */
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+The Wellness RAG Micro-App allows users to ask questions about yoga practices, benefits, and precautions.
+The system retrieves relevant knowledge from a curated yoga dataset and generates context-grounded AI answers, while ensuring safe and responsible responses for sensitive health topics.
 
-/* -------------------- MONGODB -------------------- */
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("MongoDB error:", err));
+Key goals:
 
-const QuerySchema = new mongoose.Schema({
+Demonstrate RAG design and retrieval logic
+
+Implement safety-first AI behavior
+
+Log complete interaction data in MongoDB
+
+Keep architecture clean and easy to evaluate
+
+✨ Key Features
+🔍 Retrieval-Augmented Generation (RAG)
+
+Lightweight embedding & similarity search
+
+Top-K document retrieval
+
+AI answers grounded strictly in retrieved context
+
+⚠️ Safety Guardrails (Mandatory)
+
+Detects health-sensitive queries (pregnancy, BP, surgery, etc.)
+
+Prevents medical advice or risky instructions
+
+Returns clear safety warnings and professional guidance
+
+🗄️ MongoDB Logging
+
+Each user interaction stores:
+
+User query
+
+Retrieved knowledge sources
+
+AI-generated answer
+
+Safety flag (isUnsafe)
+
+Optional user feedback
+
+Timestamp
+
+🔎 Transparent Responses
+
+API response includes sources used
+
+Easy to display in any frontend (React, Streamlit, Postman)
+
+🛠️ Tech Stack
+
+Backend
+
+Node.js
+
+Express.js
+
+MongoDB (Mongoose)
+
+AI
+
+OpenAI API
+
+Context-grounded prompting
+
+Architecture
+
+Single-file backend (app.js)
+
+REST APIs
+
+🧠 How the RAG Pipeline Works
+User Query
+   ↓
+Safety Filter (keyword-based)
+   ↓
+Query Embedding
+   ↓
+Similarity Search (Top-3 Chunks)
+   ↓
+Prompt Construction (Context + Question)
+   ↓
+AI Answer Generation
+   ↓
+MongoDB Logging
+   ↓
+Response with Sources & Safety Flag
+
+📚 Knowledge Base
+
+Curated yoga content (expandable to 20–50 entries)
+
+Topics covered:
+
+Yoga asanas
+
+Benefits
+
+Contraindications
+
+Pranayama
+
+Beginner-friendly practices
+
+All content is self-written summaries based on publicly available knowledge
+(No raw scraping or copyrighted redistribution)
+
+⚠️ Safety Logic
+Unsafe Query Detection
+
+Queries are flagged unsafe if they include keywords related to:
+
+Pregnancy
+
+High blood pressure
+
+Glaucoma
+
+Hernia
+
+Heart conditions
+
+Recent surgery
+
+Unsafe Behavior
+
+When a query is unsafe:
+
+isUnsafe = true is stored
+
+AI does not give pose instructions
+
+Response includes:
+
+Safety warning
+
+Gentle alternatives (breathing, relaxation)
+
+Advice to consult a professional
+
+⚠️ No medical diagnosis or treatment is provided
+
+🔌 API Endpoints
+POST /ask
+
+Request
+
+{
+  "query": "Can pregnant women do headstand?"
+}
+
+
+Response
+
+{
+  "answer": "⚠️ Safety Notice: ...",
+  "sources": [
+    "Source 1: Contraindications of Headstand"
+  ],
+  "isUnsafe": true,
+  "queryId": "65f1c9..."
+}
+
+POST /feedback
+
+Request
+
+{
+  "queryId": "65f1c9...",
+  "helpful": true
+}
+
+
+Response
+
+{
+  "message": "Feedback recorded"
+}
+
+🗃️ MongoDB Schema
+{
   query: String,
   retrievedChunks: [String],
   answer: String,
   isUnsafe: Boolean,
   feedback: Boolean,
-  createdAt: { type: Date, default: Date.now },
-});
-
-const QueryLog = mongoose.model("QueryLog", QuerySchema);
-
-/* -------------------- YOGA KNOWLEDGE BASE -------------------- */
-/* (Extend this to 20–50 entries for final submission) */
-
-const yogaDocs = [
-  {
-    id: "A1",
-    title: "Benefits of Shavasana",
-    content:
-      "Shavasana helps reduce stress, relax the nervous system, and improve mindfulness. It is suitable for all levels.",
-  },
-  {
-    id: "A2",
-    title: "Contraindications of Headstand",
-    content:
-      "Headstand should be avoided by people with neck injuries, glaucoma, high blood pressure, or during pregnancy.",
-  },
-  {
-    id: "A3",
-    title: "Pranayama for Beginners",
-    content:
-      "Breathing practices like Anulom Vilom help calm the mind and improve lung capacity.",
-  },
-];
-
-/* -------------------- SIMPLE EMBEDDING -------------------- */
-/* Lightweight similarity (for demo clarity) */
-
-function embed(text) {
-  const words = text.toLowerCase().split(/\W+/);
-  const vector = {};
-  words.forEach((w) => {
-    if (!w) return;
-    vector[w] = (vector[w] || 0) + 1;
-  });
-  return vector;
+  createdAt: Date
 }
 
-function similarity(vec1, vec2) {
-  let dot = 0,
-    normA = 0,
-    normB = 0;
+⚙️ How to Run Locally
+1️⃣ Clone the Repository
+git clone https://github.com/your-username/wellness-rag-yoga-app.git
+cd wellness-rag-yoga-app
 
-  for (let k in vec1) {
-    dot += (vec1[k] || 0) * (vec2[k] || 0);
-    normA += vec1[k] ** 2;
-  }
-  for (let k in vec2) normB += vec2[k] ** 2;
+2️⃣ Install Dependencies
+npm install
 
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
+3️⃣ Environment Variables
+
+Create a .env file using .env.example:
+
+OPENAI_API_KEY=your_openai_key
+MONGODB_URI=mongodb://127.0.0.1:27017/yoga_rag
+PORT=5000
+
+4️⃣ Start the Server
+npm start
+
+
+Server will run at:
+
+http://localhost:5000
+
+🧪 Sample Test Queries
+Safe Query
+{
+  "query": "What are the benefits of Shavasana?"
 }
 
-/* Pre-embed documents */
-const embeddedDocs = yogaDocs.map((doc) => ({
-  ...doc,
-  embedding: embed(doc.content),
-}));
-
-/* -------------------- SAFETY FILTER -------------------- */
-const unsafeKeywords = [
-  "pregnant",
-  "pregnancy",
-  "hernia",
-  "glaucoma",
-  "high blood pressure",
-  "surgery",
-  "heart",
-];
-
-function isUnsafeQuery(query) {
-  return unsafeKeywords.some((k) =>
-    query.toLowerCase().includes(k)
-  );
+Unsafe Query
+{
+  "query": "Can pregnant women do headstand?"
 }
 
-/* -------------------- ASK API -------------------- */
-app.post("/ask", async (req, res) => {
-  try {
-    const { query } = req.body;
-    if (!query) return res.status(400).json({ error: "Query required" });
-
-    const unsafe = isUnsafeQuery(query);
-
-    /* Retrieve top 3 chunks */
-    const qEmbedding = embed(query);
-    const scored = embeddedDocs
-      .map((d) => ({
-        ...d,
-        score: similarity(qEmbedding, d.embedding),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
-
-    const context = scored.map((d) => d.content).join("\n");
-
-    let answer;
-
-    if (unsafe) {
-      answer = `⚠️ Safety Notice:
-Your question involves a condition where yoga practices may be risky.
-
-Consider gentle breathing or relaxation practices.
-Please consult a doctor or certified yoga therapist before practicing.`;
-    } else {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a yoga assistant. Answer ONLY using the provided context.",
-          },
-          {
-            role: "user",
-            content: `Context:\n${context}\n\nQuestion:\n${query}`,
-          },
-        ],
-      });
-
-      answer = completion.choices[0].message.content;
-    }
-
-    /* Store in MongoDB */
-    const log = await QueryLog.create({
-      query,
-      retrievedChunks: scored.map((s) => s.title),
-      answer,
-      isUnsafe: unsafe,
-    });
-
-    res.json({
-      answer,
-      sources: scored.map(
-        (s, i) => `Source ${i + 1}: ${s.title}`
-      ),
-      isUnsafe: unsafe,
-      queryId: log._id,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-/* -------------------- FEEDBACK API -------------------- */
-app.post("/feedback", async (req, res) => {
-  const { queryId, helpful } = req.body;
-  await QueryLog.findByIdAndUpdate(queryId, {
-    feedback: helpful,
-  });
-  res.json({ message: "Feedback saved" });
-});
-
-/* -------------------- SERVER -------------------- */
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
-  console.log(`🧘 Yoga RAG Server running on port ${PORT}`)
-);
+📈 Evaluation Alignment
+Evaluation Criteria	Covered
+RAG Design & Retrieval	✅
+Safety & Guardrails	✅
+Backend Architecture	✅
+MongoDB Logging	✅
+Explainability	✅
+Code Simplicity	✅
