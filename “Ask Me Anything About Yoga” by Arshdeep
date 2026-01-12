@@ -1,7 +1,7 @@
-/***************************************
+/************************************************
  * Wellness RAG Micro-App (Single File)
  * Ask Me Anything About Yoga
- ***************************************/
+ ************************************************/
 
 import express from "express";
 import mongoose from "mongoose";
@@ -11,6 +11,8 @@ import dotenv from "dotenv";
 import OpenAI from "openai";
 
 dotenv.config();
+
+/* -------------------- APP SETUP -------------------- */
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
@@ -21,7 +23,10 @@ const openai = new OpenAI({
 });
 
 /* -------------------- MONGODB -------------------- */
-mongoose.connect(process.env.MONGODB_URI);
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => console.error("MongoDB error:", err));
 
 const QuerySchema = new mongoose.Schema({
   query: String,
@@ -35,7 +40,7 @@ const QuerySchema = new mongoose.Schema({
 const QueryLog = mongoose.model("QueryLog", QuerySchema);
 
 /* -------------------- YOGA KNOWLEDGE BASE -------------------- */
-/* (20–50 entries recommended; sample shown) */
+/* (Extend this to 20–50 entries for final submission) */
 
 const yogaDocs = [
   {
@@ -54,17 +59,18 @@ const yogaDocs = [
     id: "A3",
     title: "Pranayama for Beginners",
     content:
-      "Deep breathing practices like Anulom Vilom help calm the mind and improve lung capacity.",
+      "Breathing practices like Anulom Vilom help calm the mind and improve lung capacity.",
   },
 ];
 
-/* -------------------- SIMPLE EMBEDDING FUNCTION -------------------- */
-/* (Lightweight cosine similarity approach) */
+/* -------------------- SIMPLE EMBEDDING -------------------- */
+/* Lightweight similarity (for demo clarity) */
 
 function embed(text) {
-  const words = text.toLowerCase().split(" ");
+  const words = text.toLowerCase().split(/\W+/);
   const vector = {};
   words.forEach((w) => {
+    if (!w) return;
     vector[w] = (vector[w] || 0) + 1;
   });
   return vector;
@@ -74,18 +80,20 @@ function similarity(vec1, vec2) {
   let dot = 0,
     normA = 0,
     normB = 0;
+
   for (let k in vec1) {
     dot += (vec1[k] || 0) * (vec2[k] || 0);
     normA += vec1[k] ** 2;
   }
   for (let k in vec2) normB += vec2[k] ** 2;
+
   return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
 }
 
-/* Pre-embed docs */
-const embeddedDocs = yogaDocs.map((d) => ({
-  ...d,
-  embedding: embed(d.content),
+/* Pre-embed documents */
+const embeddedDocs = yogaDocs.map((doc) => ({
+  ...doc,
+  embedding: embed(doc.content),
 }));
 
 /* -------------------- SAFETY FILTER -------------------- */
@@ -100,16 +108,20 @@ const unsafeKeywords = [
 ];
 
 function isUnsafeQuery(query) {
-  return unsafeKeywords.some((k) => query.toLowerCase().includes(k));
+  return unsafeKeywords.some((k) =>
+    query.toLowerCase().includes(k)
+  );
 }
 
 /* -------------------- ASK API -------------------- */
 app.post("/ask", async (req, res) => {
   try {
     const { query } = req.body;
+    if (!query) return res.status(400).json({ error: "Query required" });
+
     const unsafe = isUnsafeQuery(query);
 
-    /* Retrieve Top Chunks */
+    /* Retrieve top 3 chunks */
     const qEmbedding = embed(query);
     const scored = embeddedDocs
       .map((d) => ({
@@ -121,17 +133,14 @@ app.post("/ask", async (req, res) => {
 
     const context = scored.map((d) => d.content).join("\n");
 
-    /* Safety-first response */
     let answer;
 
     if (unsafe) {
-      answer = `
-⚠️ Safety Notice:
+      answer = `⚠️ Safety Notice:
 Your question involves a condition where yoga practices may be risky.
 
-Consider gentle breathing or relaxation practices instead of advanced poses.
-Please consult a doctor or certified yoga therapist before practicing.
-`;
+Consider gentle breathing or relaxation practices.
+Please consult a doctor or certified yoga therapist before practicing.`;
     } else {
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -151,7 +160,7 @@ Please consult a doctor or certified yoga therapist before practicing.
       answer = completion.choices[0].message.content;
     }
 
-    /* Log to MongoDB */
+    /* Store in MongoDB */
     const log = await QueryLog.create({
       query,
       retrievedChunks: scored.map((s) => s.title),
@@ -167,8 +176,9 @@ Please consult a doctor or certified yoga therapist before practicing.
       isUnsafe: unsafe,
       queryId: log._id,
     });
-  } catch (err) {
-    res.status(500).json({ error: "Something went wrong" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -178,7 +188,7 @@ app.post("/feedback", async (req, res) => {
   await QueryLog.findByIdAndUpdate(queryId, {
     feedback: helpful,
   });
-  res.json({ message: "Feedback recorded" });
+  res.json({ message: "Feedback saved" });
 });
 
 /* -------------------- SERVER -------------------- */
