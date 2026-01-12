@@ -8,7 +8,7 @@
  * - Retrieval-Augmented Generation (RAG)
  * - Safety Guardrails for Health Queries
  *
- * Author: Kunal Singh
+ * Author: Arshdeep Kaur
  ************************************************/
 
 import express from "express";
